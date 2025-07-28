@@ -13,7 +13,7 @@ android.api = 33
 android.ndk = 25.2.9519653
 android.sdk = 34.0.0
 p4a.branch = master
-android.arch = arm64-v8a
+android.archs = arm64-v8a  # 使用 archs 而不是 arch
 
 # 日志设置
 [buildozer]
