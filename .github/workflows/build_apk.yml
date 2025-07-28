@@ -20,7 +20,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y git zip unzip openjdk-11-jdk libncurses5 zlib1g-dev
-        pip install buildozer cython==0.29.36
+        pip install buildozer cython==0.29.36 python-for-android==2023.8.17
         echo "系统依赖安装完成"
         
     - name: Install Android SDK and NDK
@@ -83,14 +83,34 @@ jobs:
         echo "[app]" > ~/.buildozer/default.cfg
         echo "android.sdk_path = $HOME/android-sdk" >> ~/.buildozer/default.cfg
         echo "android.ndk_path = $HOME/android-ndk" >> ~/.buildozer/default.cfg
-        echo "android.arch = arm64-v8a" >> ~/.buildozer/default.cfg
+        echo "android.archs = arm64-v8a" >> ~/.buildozer/default.cfg  # 使用 archs 而不是 arch
         echo "p4a.branch = master" >> ~/.buildozer/default.cfg
         
         echo "Buildozer 配置完成"
         
-    - name: Build APK (优化版)
+    - name: Pre-initialize Python-for-Android
+      run: |
+        echo "=== 预初始化 Python-for-Android ==="
+        
+        # 创建必要的目录结构
+        mkdir -p ~/.buildozer/android/platform/python-for-android
+        
+        # 克隆 Python-for-Android 仓库
+        git clone https://github.com/kivy/python-for-android.git ~/.buildozer/android/platform/python-for-android
+        
+        # 切换到稳定分支
+        cd ~/.buildozer/android/platform/python-for-android
+        git checkout 2023.8.17  # 使用稳定版本
+        cd -
+        
+        echo "Python-for-Android 预初始化完成"
+        
+    - name: Build APK (修复版)
       run: |
         echo "=== 开始构建 APK ==="
+        
+        # 设置环境变量
+        export P4A_DIR=~/.buildozer/android/platform/python-for-android
         
         # 删除现有的构建目录
         rm -rf .buildozer bin
