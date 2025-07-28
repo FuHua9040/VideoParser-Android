@@ -79,3 +79,22 @@ jobs:
         name: videoparser-apk
         path: |
           *.apk
+
+- name: Cache Android SDK
+  uses: actions/cache@v3
+  with:
+    path: |
+      ~/android-sdk
+      ~/android-ndk
+      ~/.buildozer
+    key: android-${{ runner.os }}
+
+
+jobs:
+  build:
+    timeout-minutes: 180  # 延长到3小时
+
+- name: Free up disk space
+  run: |
+    sudo apt-get clean
+    sudo rm -rf /usr/local/lib/android/sdk/ndk-bundle
