@@ -5,7 +5,7 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-22.04
-    timeout-minutes: 180  # 延长超时时间至3小时
+    timeout-minutes: 180
     
     steps:
     - name: Checkout code
@@ -88,21 +88,19 @@ jobs:
         
         echo "Buildozer 配置完成"
         
-    - name: Build APK (带详细日志)
+    - name: Build APK (优化版)
       run: |
         echo "=== 开始构建 APK ==="
         
-        # 初始化Buildozer
-        buildozer init
-        
-        # 覆盖默认spec文件
-        cp buildozer.spec ~/.buildozer/default.spec
+        # 删除现有的构建目录
+        rm -rf .buildozer bin
         
         # 使用详细模式构建
         buildozer -v android clean
         buildozer -v android release || {
             echo "构建失败，保存日志..."
-            cat .buildozer/android/platform/build-*/build.log
+            # 查找并显示错误日志
+            find .buildozer -name "*.log" -exec cat {} \;
             exit 1
         }
         
