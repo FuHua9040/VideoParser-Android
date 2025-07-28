@@ -4,7 +4,9 @@ on: [push]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -14,11 +16,57 @@ jobs:
       with:
         python-version: '3.10'
         
-    - name: Install dependencies
+    - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y git zip unzip openjdk-11-jdk
+        sudo apt-get install -y git zip unzip openjdk-11-jdk libncurses5
         pip install buildozer cython==0.29.36
+        
+    - name: Install Android SDK and NDK
+      run: |
+        # 创建必要的目录
+        mkdir -p ~/.android
+        touch ~/.android/repositories.cfg
+        
+        # 下载并安装命令行工具
+        wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+        unzip cmdline-tools.zip -d cmdline-tools
+        mkdir -p ~/android-sdk/cmdline-tools
+        mv cmdline-tools/cmdline-tools ~/android-sdk/cmdline-tools/latest
+        rm cmdline-tools.zip
+        
+        # 设置环境变量
+        echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$PATH" >> $GITHUB_ENV
+        
+        # 接受许可证
+        yes | ~/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+        
+        # 安装必要的Android组件
+        ~/android-sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;34.0.0"
+        
+        # 安装NDK
+        wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
+        unzip android-ndk-r25c-linux.zip -d ~/
+        mv ~/android-ndk-r25c ~/android-ndk
+        echo "ANDROID_NDK_HOME=$HOME/android-ndk" >> $GITHUB_ENV
+        echo "PATH=$HOME/android-ndk:$PATH" >> $GITHUB_ENV
+        
+    - name: Verify Android tools
+      run: |
+        $HOME/android-sdk/build-tools/34.0.0/aidl --version
+        $HOME/android-sdk/platform-tools/adb --version
+        
+    - name: Configure Buildozer
+      run: |
+        # 创建Buildozer目录结构
+        mkdir -p ~/.buildozer
+        
+        # 创建本地配置文件
+        echo "[app]" > ~/.buildozer/default.cfg
+        echo "android.sdk_path = $HOME/android-sdk" >> ~/.buildozer/default.cfg
+        echo "android.ndk_path = $HOME/android-ndk" >> ~/.buildozer/default.cfg
+        echo "android.arch = arm64-v8a" >> ~/.buildozer/default.cfg
         
     - name: Build APK
       run: |
