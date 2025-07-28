@@ -5,7 +5,7 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-22.04
-    timeout-minutes: 120
+    timeout-minutes: 180  # 延长超时时间至3小时
     
     steps:
     - name: Checkout code
@@ -19,18 +19,22 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y git zip unzip openjdk-11-jdk libncurses5
+        sudo apt-get install -y git zip unzip openjdk-11-jdk libncurses5 zlib1g-dev
         pip install buildozer cython==0.29.36
+        echo "系统依赖安装完成"
         
     - name: Install Android SDK and NDK
       run: |
+        echo "=== 开始安装 Android SDK 和 NDK ==="
+        
         # 创建必要的目录
         mkdir -p ~/.android
         touch ~/.android/repositories.cfg
         
         # 下载并安装命令行工具
-        wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-        unzip cmdline-tools.zip -d cmdline-tools
+        echo "下载命令行工具..."
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+        unzip -q cmdline-tools.zip -d cmdline-tools
         mkdir -p ~/android-sdk/cmdline-tools
         mv cmdline-tools/cmdline-tools ~/android-sdk/cmdline-tools/latest
         rm cmdline-tools.zip
@@ -38,27 +42,40 @@ jobs:
         # 设置环境变量
         echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
         echo "PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$PATH" >> $GITHUB_ENV
+        echo "设置环境变量完成"
         
         # 接受许可证
-        yes | ~/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+        echo "接受许可证..."
+        yes | ~/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1
         
         # 安装必要的Android组件
-        ~/android-sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;34.0.0"
+        echo "安装平台工具和构建工具..."
+        ~/android-sdk/cmdline-tools/latest/bin/sdkmanager --install "platform-tools" "platforms;android-33" "build-tools;34.0.0"
         
         # 安装NDK
-        wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
-        unzip android-ndk-r25c-linux.zip -d ~/
+        echo "下载NDK..."
+        wget -q https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
+        unzip -q android-ndk-r25c-linux.zip -d ~/
         mv ~/android-ndk-r25c ~/android-ndk
         echo "ANDROID_NDK_HOME=$HOME/android-ndk" >> $GITHUB_ENV
         echo "PATH=$HOME/android-ndk:$PATH" >> $GITHUB_ENV
         
+        echo "Android SDK 和 NDK 安装完成"
+        
     - name: Verify Android tools
       run: |
-        $HOME/android-sdk/build-tools/34.0.0/aidl --version
-        $HOME/android-sdk/platform-tools/adb --version
+        echo "=== 验证Android工具 ==="
+        echo "AIDL 版本:"
+        $HOME/android-sdk/build-tools/34.0.0/aidl --version || echo "AIDL 验证失败"
+        echo "ADB 版本:"
+        $HOME/android-sdk/platform-tools/adb --version || echo "ADB 验证失败"
+        echo "SDK 管理器:"
+        $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --list || echo "SDK 管理器验证失败"
         
     - name: Configure Buildozer
       run: |
+        echo "=== 配置 Buildozer ==="
+        
         # 创建Buildozer目录结构
         mkdir -p ~/.buildozer
         
@@ -67,15 +84,44 @@ jobs:
         echo "android.sdk_path = $HOME/android-sdk" >> ~/.buildozer/default.cfg
         echo "android.ndk_path = $HOME/android-ndk" >> ~/.buildozer/default.cfg
         echo "android.arch = arm64-v8a" >> ~/.buildozer/default.cfg
+        echo "p4a.branch = master" >> ~/.buildozer/default.cfg
         
-    - name: Build APK
+        echo "Buildozer 配置完成"
+        
+    - name: Build APK (带详细日志)
       run: |
-        buildozer -v android release
+        echo "=== 开始构建 APK ==="
+        
+        # 初始化Buildozer
+        buildozer init
+        
+        # 覆盖默认spec文件
+        cp buildozer.spec ~/.buildozer/default.spec
+        
+        # 使用详细模式构建
+        buildozer -v android clean
+        buildozer -v android release || {
+            echo "构建失败，保存日志..."
+            cat .buildozer/android/platform/build-*/build.log
+            exit 1
+        }
+        
+        # 复制生成的APK
         cp bin/*.apk .
+        echo "APK构建成功"
         
     - name: Upload APK
+      if: success()  # 只有构建成功才上传
       uses: actions/upload-artifact@v4
       with:
         name: videoparser-apk
         path: |
           *.apk
+          
+    - name: Upload Build Logs
+      if: failure()  # 只有构建失败才上传日志
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs
+        path: |
+          .buildozer/**/*.log
