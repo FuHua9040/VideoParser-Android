@@ -18,3 +18,7 @@ android.arch = arm64-v8a
 # 日志设置
 [buildozer]
 log_level = 2
+
+# 构建优化
+[build]
+arch = arm64-v8a
