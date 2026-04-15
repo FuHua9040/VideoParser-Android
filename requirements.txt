@@ -1,0 +1,9 @@
+# VideoParser-Android v2.0 依赖
+# Python 视频解析助手 - Android 版
+
+# Kivy - 跨平台 GUI 框架
+# 用于构建 Android 应用的 UI 界面
+kivy>=2.2.0
+
+# Buildozer - Android 打包工具（可选，仅在打包时使用）
+# buildozer>=1.5.0
