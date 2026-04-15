@@ -120,13 +120,13 @@ class ParseResult:
     
     Attributes:
         success: 是否成功
-        url: 解析后的播放 URL
-        channel: 使用的解析通道
+        url: 解析后的播放 URL（失败时为空字符串）
+        channel: 使用的解析通道（失败时为空字符串）
         error_message: 错误信息（失败时）
     """
     success: bool
-    url: str
-    channel: str
+    url: str = ""
+    channel: str = ""
     error_message: Optional[str] = None
     
     @classmethod
